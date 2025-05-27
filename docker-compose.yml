@@ -1,0 +1,80 @@
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./results:/app/results
+    environment:
+      - OLLAMA_GPU_LAYERS=-1  # Usar toda la GPU disponible
+      - OLLAMA_NUM_THREADS=12  # Aumentar threads
+      - CUDA_VISIBLE_DEVICES=0
+      - OLLAMA_GPU_MEM_FRACTION=0.9  # Usar más memoria GPU
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MAX_LOADED_MODELS=2  # Limitar modelos cargados simultáneamente
+      - OLLAMA_NUM_PARALLEL=2  # Limitar consultas paralelas
+      - OLLAMA_FLASH_ATTENTION=1  #  flash attention para eficiencia
+    deploy:
+      resources:
+        limits:
+          memory: 8G  
+          cpus: '6.0'  
+    restart: unless-stopped
+    runtime: nvidia  # Para soporte GPU
+    
+  # Contenedor para tareas de código
+  ollama-code:
+    image: ollama/ollama:latest
+    container_name: ollama-code-processor
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./code_results:/app/results
+    environment:
+      - OLLAMA_GPU_LAYERS=0  # solo CPU
+      - OLLAMA_NUM_THREADS=8
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MAX_LOADED_MODELS=1
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '4.0'
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    profiles:
+      - multi-service  # Solo iniciar si se especifica el profile
+
+  # Contenedor para tareas de texto 
+  ollama-text:
+    image: ollama/ollama:latest
+    container_name: ollama-text-processor
+    ports:
+      - "11436:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./text_results:/app/results
+    environment:
+      - OLLAMA_GPU_LAYERS=0  # solo CPU 
+      - OLLAMA_NUM_THREADS=8
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MAX_LOADED_MODELS=1
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '4.0'
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    profiles:
+      - multi-service  # esta es una verificacion extra
+
+volumes:
+  ollama_data:
+    driver: local 

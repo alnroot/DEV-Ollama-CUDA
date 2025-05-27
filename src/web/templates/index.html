@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .stats-panel {
+            width: 350px;
+            background: linear-gradient(145deg, #0f0f23 0%, #1a1a3e 100%);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, #00ffff 50%, transparent 100%);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .stats-header {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .last-update {
+            font-family: 'Courier New', monospace;
+            color: #888;
+            font-size: 10px !important;
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #00ffff;
+        }
+
+        .stat-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .stat-label {
+            color: #88ccff;
+        }
+
+        .stat-value {
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff 0%, #00ff88 100%);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+
+        .gpu-status {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .cpu-status {
+            background: #ffaa00;
+            box-shadow: 0 0 10px #ffaa00;
+        }
+
+        .memory-status {
+            background: #ff6600;
+            box-shadow: 0 0 10px #ff6600;
+        }
+
+        .no-gpu {
+            background: #666666;
+            box-shadow: 0 0 10px #666666;
+        }
+
+        .gpu-disabled {
+            color: #888888 !important;
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        select, button, input {
+            padding: 10px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message-timestamp {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .user-message .message-timestamp {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .assistant-message .message-timestamp {
+            color: rgba(51, 51, 51, 0.6);
+        }
+
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+        }
+
+        .assistant-message {
+            background: #f1f3f4;
+            color: #333;
+        }
+
+        .chat-input-container {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid #e1e5e9;
+        }
+
+        .chat-input {
+            flex: 1;
+            margin-right: 10px;
+            min-height: 44px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .online { background: #4caf50; }
+        .offline { background: #f44336; }
+        .error { background: #ff9800; }
+
+        .popular-models {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .popular-model-btn {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 15px;
+        }
+
+        .popular-model-btn:hover {
+            background: #bbdefb;
+            transform: none;
+            box-shadow: none;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .stats-panel {
+                width: 100%;
+                order: 2;
+            }
+            
+            .content-area {
+                order: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .control-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+            
+            .stats-panel {
+                padding: 15px;
+            }
+            
+            .stat-section {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 DEV-Ollama Chat</h1>
+            <p>you know what you want</p>
+        </div>
+
+        <div class="main-layout">
+            <!-- Panel de Estadísticas Futurista -->
+            <div class="stats-panel">
+                <div class="stats-header">
+                    <div>⚡ SYSTEM MONITOR</div>
+                    <div class="last-update" id="last-update">
+                        <span style="font-size: 10px; opacity: 0.7;">Actualizado: --:--:--</span>
+                    </div>
+                </div>
+                
+                <!-- GPU Section -->
+                <div class="stat-section">
+                    <div class="stat-title">
+                        <span class="status-indicator gpu-status"></span>GPU STATUS
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Device:</span>
+                        <span class="stat-value" id="gpu-name">Detecting...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Memory:</span>
+                        <span class="stat-value" id="gpu-memory">0 GB</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">CUDA:</span>
+                        <span class="stat-value" id="gpu-cuda">N/A</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Driver:</span>
+                        <span class="stat-value" id="gpu-driver">N/A</span>
+                    </div>
+                </div>
+
+                <!-- CPU Section -->
+                <div class="stat-section">
+                    <div class="stat-title">
+                        <span class="status-indicator cpu-status"></span>CPU STATUS
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Usage:</span>
+                        <span class="stat-value" id="cpu-usage">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="cpu-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Cores:</span>
+                        <span class="stat-value" id="cpu-cores">0/0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Frequency:</span>
+                        <span class="stat-value" id="cpu-freq">0 MHz</span>
+                    </div>
+                </div>
+
+                <!-- Memory Section -->
+                <div class="stat-section">
+                    <div class="stat-title">
+                        <span class="status-indicator memory-status"></span>MEMORY
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Used:</span>
+                        <span class="stat-value" id="memory-used">0 GB</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="memory-progress" style="width: 0%"></div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total:</span>
+                        <span class="stat-value" id="memory-total">0 GB</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Available:</span>
+                        <span class="stat-value" id="memory-available">0 GB</span>
+                    </div>
+                </div>
+
+                <!-- Performance Section -->
+                <div class="stat-section">
+                    <div class="stat-title">⚡ PERFORMANCE</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Tokens/sec:</span>
+                        <span class="stat-value" id="tokens-per-sec">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Model:</span>
+                        <span class="stat-value" id="active-model">None</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Inference:</span>
+                        <span class="stat-value" id="inference-time">0 ms</span>
+                    </div>
+                </div>
+
+                <!-- Services Status Section -->
+                <div class="stat-section">
+                    <div class="stat-title">🔗 SERVICES</div>
+                    <div class="stat-item">
+                        <span class="stat-label">General:</span>
+                        <span class="stat-value" id="service-general">⚫ Checking...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Code:</span>
+                        <span class="stat-value" id="service-code">⚫ Checking...</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Text:</span>
+                        <span class="stat-value" id="service-text">⚫ Checking...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Área de Contenido Principal -->
+            <div class="content-area">
+                <div class="controls">
+                    <div class="control-row">
+                        <label>Servicio:</label>
+                        <select id="serviceSelect">
+                            <option value="general">General</option>
+                            <option value="code">Code</option>
+                            <option value="text">Text</option>
+                        </select>
+                        
+                        <label>Modelo:</label>
+                        <select id="modelSelect">
+                            <option value="">Selecciona un modelo...</option>
+                        </select>
+                        
+                        <button onclick="loadModels()">🔄 Actualizar Modelos</button>
+                        <button onclick="exportStats()">📊 Exportar Stats</button>
+                    </div>
+
+                    <div class="control-row">
+                        <input type="text" id="downloadModel" placeholder="Nombre del modelo a descargar (ej: llama3.2:3b)">
+                        <button onclick="downloadModel()">📥 Descargar</button>
+                        <button onclick="clearHistory()">🗑️ Limpiar Chat</button>
+                        <button onclick="toggleStatsMonitoring()">⏸️ Pausar Stats</button>
+                    </div>
+
+                    <div class="control-row">
+                        <button onclick="startDockerServices()">🚀 Iniciar Servicios</button>
+                        <button onclick="stopDockerServices()">🛑 Detener Servicios</button>
+                        <button onclick="restartDockerServices()">🔄 Reiniciar Servicios</button>
+                        <button onclick="detailedDiagnostic()">🔧 Diagnóstico</button>
+                    </div>
+
+                    <div>
+                        <label>Modelos populares:</label>
+                        <div class="popular-models" id="popularModels"></div>
+                    </div>
+                </div>
+
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input-container">
+                        <input type="text" id="messageInput" class="chat-input" placeholder="Escribe tu mensaje..." onkeypress="handleKeyPress(event)">
+                        <button onclick="sendMessage()">📤 Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentModel = '';
+        let currentService = 'general';
+        let statsInterval = null;
+        let statsMonitoring = true;
+
+        // Load popular models on startup
+        loadPopularModels();
+        loadModels();
+        
+        // Start real-time stats monitoring
+        startStatsMonitoring();
+
+        function loadPopularModels() {
+            fetch('/api/popular-models')
+                .then(response => response.json())
+                .then(models => {
+                    const container = document.getElementById('popularModels');
+                    container.innerHTML = '';
+                    models.forEach(model => {
+                        const btn = document.createElement('button');
+                        btn.className = 'popular-model-btn';
+                        btn.textContent = model;
+                        btn.onclick = () => selectPopularModel(model);
+                        container.appendChild(btn);
+                    });
+                });
+        }
+
+        function selectPopularModel(model) {
+            document.getElementById('downloadModel').value = model;
+        }
+
+        function loadModels() {
+            const service = document.getElementById('serviceSelect').value;
+            currentService = service;
+            
+            fetch(`/api/models/${service}`)
+                .then(response => response.json())
+                .then(models => {
+                    const select = document.getElementById('modelSelect');
+                    select.innerHTML = '<option value="">Selecciona un modelo...</option>';
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        select.appendChild(option);
+                    });
+                });
+        }
+
+        function downloadModel() {
+            const modelName = document.getElementById('downloadModel').value;
+            const service = document.getElementById('serviceSelect').value;
+            
+            if (!modelName) {
+                alert('Por favor, ingresa el nombre del modelo');
+                return;
+            }
+
+            fetch('/api/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model_name: modelName,
+                    service_type: service
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    document.getElementById('downloadModel').value = '';
+                    setTimeout(loadModels, 2000);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            const model = document.getElementById('modelSelect').value;
+            const service = document.getElementById('serviceSelect').value;
+            
+            if (!message || !model) {
+                alert('Por favor, selecciona un modelo y escribe un mensaje');
+                return;
+            }
+
+            // Add user message to chat
+            addMessage('user', message);
+            document.getElementById('messageInput').value = '';
+
+            // Send to API
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    model: model,
+                    service_type: service
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addMessage('assistant', data.response);
+                } else {
+                    addMessage('assistant', 'Error: ' + data.error);
+                }
+            });
+        }
+
+        function addMessage(type, content) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            // Crear timestamp
+            const timestamp = new Date().toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            // Agregar contenido y timestamp
+            messageDiv.innerHTML = `
+                <div class="message-content">${content}</div>
+                <div class="message-timestamp">${timestamp}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function clearHistory() {
+            fetch('/api/clear-history', { method: 'POST' })
+                .then(() => {
+                    document.getElementById('chatMessages').innerHTML = '';
+                });
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Auto-update service selection
+        document.getElementById('serviceSelect').addEventListener('change', loadModels);
+
+
+
+        function startDockerServices() {
+            fetch('/api/docker/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✓ ' + data.message);
+                        setTimeout(checkStatus, 2000);
+                    } else {
+                        alert('❌ Error: ' + data.error);
+                    }
+                });
+        }
+
+        function stopDockerServices() {
+            if (confirm('¿Estás seguro de que quieres detener todos los servicios?')) {
+                fetch('/api/docker/stop', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('✓ ' + data.message);
+                            setTimeout(checkStatus, 2000);
+                        } else {
+                            alert('❌ Error: ' + data.error);
+                        }
+                    });
+            }
+        }
+
+        function restartDockerServices() {
+            fetch('/api/docker/restart', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✓ ' + data.message);
+                        setTimeout(checkStatus, 2000);
+                    } else {
+                        alert('❌ Error: ' + data.error);
+                    }
+                });
+        }
+
+
+
+        function startStatsMonitoring() {
+            updateTechnicalStats();
+            statsInterval = setInterval(updateTechnicalStats, 30000); // Update every 15 seconds (optimizado)
+        }
+
+        function toggleStatsMonitoring() {
+            const button = event.target;
+            if (statsMonitoring) {
+                clearInterval(statsInterval);
+                statsMonitoring = false;
+                button.textContent = '▶️ Reanudar Stats';
+                button.style.background = 'linear-gradient(135deg, #ff6600 0%, #ff0000 100%)';
+            } else {
+                startStatsMonitoring();
+                statsMonitoring = true;
+                button.textContent = '⏸️ Pausar Stats';
+                button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+        }
+
+        function exportStats() {
+            fetch('/api/technical-stats')
+                .then(response => response.json())
+                .then(stats => {
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const statsText = formatStatsForExport(stats);
+                    downloadTextFile(`ollama-stats-${timestamp}.txt`, statsText);
+                });
+        }
+
+        function formatStatsForExport(stats) {
+            const timestamp = new Date().toLocaleString();
+            let export_text = `Ollama System Statistics Report\n`;
+            export_text += `Generated: ${timestamp}\n`;
+            export_text += `${'='.repeat(50)}\n\n`;
+
+            if (stats.gpu) {
+                export_text += `GPU Information:\n`;
+                export_text += `- Device: ${stats.gpu.name || 'N/A'}\n`;
+                export_text += `- Memory: ${stats.gpu.total_memory || 'N/A'}\n`;
+                export_text += `- CUDA: ${stats.gpu.cuda_version || stats.gpu.compute_capability || 'N/A'}\n`;
+                export_text += `- Driver: ${stats.gpu.driver_version || 'N/A'}\n\n`;
+            }
+
+            if (stats.system) {
+                export_text += `System Information:\n`;
+                if (stats.system.cpu) {
+                    export_text += `- CPU Usage: ${stats.system.cpu.cpu_usage || 'N/A'}\n`;
+                    export_text += `- CPU Cores: ${stats.system.cpu.physical_cores || 0}/${stats.system.cpu.logical_cores || 0}\n`;
+                    export_text += `- CPU Frequency: ${stats.system.cpu.cpu_freq || 'N/A'}\n`;
+                }
+                if (stats.system.memory) {
+                    export_text += `- Memory Used: ${stats.system.memory.used || 'N/A'}\n`;
+                    export_text += `- Memory Total: ${stats.system.memory.total || 'N/A'}\n`;
+                    export_text += `- Memory Available: ${stats.system.memory.available || 'N/A'}\n`;
+                    export_text += `- Memory Usage: ${stats.system.memory.percentage || 'N/A'}\n`;
+                }
+                export_text += `\n`;
+            }
+
+            if (stats.performance && Object.keys(stats.performance).length > 0) {
+                export_text += `Performance Metrics:\n`;
+                Object.entries(stats.performance).forEach(([key, value]) => {
+                    export_text += `- ${key}: ${value}\n`;
+                });
+                export_text += `\n`;
+            }
+
+            if (stats.model && Object.keys(stats.model).length > 0) {
+                export_text += `Active Model:\n`;
+                Object.entries(stats.model).forEach(([key, value]) => {
+                    export_text += `- ${key}: ${value}\n`;
+                });
+                export_text += `\n`;
+            }
+
+            return export_text;
+        }
+
+        function downloadTextFile(filename, text) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function detailedDiagnostic() {
+            addMessage('assistant', '🔧 Ejecutando diagnóstico detallado...');
+            
+            // Test connections
+            fetch('/api/test-connections')
+                .then(response => response.json())
+                .then(data => {
+                    let message = "🔧 **DIAGNÓSTICO COMPLETO**\n\n";
+                    
+                    message += "🔌 **Conectividad de Servicios:**\n";
+                    if (data.success) {
+                        Object.entries(data.connections).forEach(([service, info]) => {
+                            const status = info.status === 'connected' ? '✅' : 
+                                         info.status === 'error' ? '⚠️' : '❌';
+                            message += `${status} ${service}: ${info.status}`;
+                            if (info.models !== undefined) message += ` (${info.models} modelos)`;
+                            message += '\n';
+                        });
+                    } else {
+                        message += '❌ Error al verificar conexiones\n';
+                    }
+                    
+                    // Add current stats
+                    return fetch('/api/technical-stats').then(response => response.json()).then(stats => {
+                        message += "\n📊 **Estadísticas Actuales:**\n";
+                        if (stats.system && stats.system.cpu) {
+                            message += `🖥️ CPU: ${stats.system.cpu.cpu_usage} (${stats.system.cpu.physical_cores}/${stats.system.cpu.logical_cores} cores)\n`;
+                        }
+                        if (stats.system && stats.system.memory) {
+                            message += `💾 RAM: ${stats.system.memory.used}/${stats.system.memory.total} (${stats.system.memory.percentage})\n`;
+                        }
+                        if (stats.gpu && stats.gpu.name) {
+                            message += `🎮 GPU: ${stats.gpu.name}\n`;
+                        }
+                        
+                        message += "\n✅ Diagnóstico completado";
+                        addMessage('assistant', message);
+                    });
+                })
+                .catch(() => {
+                    addMessage('assistant', '❌ Error durante el diagnóstico');
+                });
+        }
+
+        function updateTechnicalStats() {
+            // Update timestamp
+            const timestamp = new Date().toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('last-update').innerHTML = 
+                `<span style="font-size: 10px; opacity: 0.7;">Actualizado: ${timestamp}</span>`;
+            
+            // Update technical stats
+            fetch('/api/technical-stats')
+                .then(response => response.json())
+                .then(stats => {
+                    updateStatsPanel(stats);
+                })
+                .catch(error => {
+                    console.log('Error loading stats:', error);
+                });
+            
+            // Update service status
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(status => {
+                    updateServiceStatus(status);
+                })
+                .catch(error => {
+                    console.log('Error loading service status:', error);
+                });
+        }
+
+        function updateStatsPanel(stats) {
+            // Update GPU info
+            if (stats.gpu) {
+                const gpuName = stats.gpu.name || 'Unknown GPU';
+                document.getElementById('gpu-name').textContent = gpuName;
+                document.getElementById('gpu-memory').textContent = stats.gpu.total_memory || 'N/A';
+                document.getElementById('gpu-cuda').textContent = stats.gpu.cuda_version || stats.gpu.compute_capability || 'N/A';
+                document.getElementById('gpu-driver').textContent = stats.gpu.driver_version || 'N/A';
+                
+                // Update GPU status indicator based on detection
+                const gpuIndicator = document.querySelector('.gpu-status');
+                const gpuSection = gpuIndicator.closest('.stat-section');
+                
+                if (gpuName.includes('No GPU detected') || gpuName === 'Unknown GPU') {
+                    gpuIndicator.className = 'status-indicator no-gpu';
+                    gpuSection.classList.add('gpu-disabled');
+                } else {
+                    gpuIndicator.className = 'status-indicator gpu-status';
+                    gpuSection.classList.remove('gpu-disabled');
+                }
+            }
+
+            // Update CPU info
+            if (stats.system && stats.system.cpu) {
+                const cpuUsage = parseFloat(stats.system.cpu.cpu_usage) || 0;
+                document.getElementById('cpu-usage').textContent = stats.system.cpu.cpu_usage || '0%';
+                document.getElementById('cpu-progress').style.width = cpuUsage + '%';
+                document.getElementById('cpu-cores').textContent = 
+                    `${stats.system.cpu.physical_cores || 0}/${stats.system.cpu.logical_cores || 0}`;
+                document.getElementById('cpu-freq').textContent = stats.system.cpu.cpu_freq || '0 MHz';
+            }
+
+            // Update Memory info
+            if (stats.system && stats.system.memory) {
+                document.getElementById('memory-used').textContent = stats.system.memory.used || '0 GB';
+                document.getElementById('memory-total').textContent = stats.system.memory.total || '0 GB';
+                document.getElementById('memory-available').textContent = stats.system.memory.available || '0 GB';
+                
+                const memoryPercent = parseFloat(stats.system.memory.percentage) || 0;
+                document.getElementById('memory-progress').style.width = memoryPercent + '%';
+            }
+
+            // Update Performance info
+            if (stats.performance) {
+                document.getElementById('tokens-per-sec').textContent = stats.performance.tokens_per_second || '0';
+                document.getElementById('inference-time').textContent = stats.performance.eval_time || '0 ms';
+            }
+
+            if (stats.model) {
+                document.getElementById('active-model').textContent = stats.model.name || 'None';
+            }
+
+            // Update progress bar colors based on usage
+            updateProgressBarColors();
+        }
+
+        function updateProgressBarColors() {
+            // CPU progress bar color
+            const cpuProgress = document.getElementById('cpu-progress');
+            const cpuUsage = parseFloat(document.getElementById('cpu-usage').textContent);
+            if (cpuUsage > 80) {
+                cpuProgress.style.background = 'linear-gradient(90deg, #ff6600 0%, #ff0000 100%)';
+            } else if (cpuUsage > 50) {
+                cpuProgress.style.background = 'linear-gradient(90deg, #ffaa00 0%, #ff6600 100%)';
+            } else {
+                cpuProgress.style.background = 'linear-gradient(90deg, #00ffff 0%, #00ff88 100%)';
+            }
+
+            // Memory progress bar color
+            const memoryProgress = document.getElementById('memory-progress');
+            const memoryUsage = parseFloat(document.getElementById('memory-used').textContent);
+            const memoryTotal = parseFloat(document.getElementById('memory-total').textContent);
+            const memoryPercent = memoryTotal > 0 ? (memoryUsage / memoryTotal) * 100 : 0;
+            
+            if (memoryPercent > 85) {
+                memoryProgress.style.background = 'linear-gradient(90deg, #ff6600 0%, #ff0000 100%)';
+            } else if (memoryPercent > 70) {
+                memoryProgress.style.background = 'linear-gradient(90deg, #ffaa00 0%, #ff6600 100%)';
+            } else {
+                memoryProgress.style.background = 'linear-gradient(90deg, #00ffff 0%, #00ff88 100%)';
+            }
+        }
+
+        function updateServiceStatus(status) {
+            Object.entries(status).forEach(([serviceName, serviceInfo]) => {
+                const element = document.getElementById(`service-${serviceName}`);
+                if (element) {
+                    let statusText = '';
+                    let statusColor = '';
+                    
+                    if (serviceInfo.status === 'online') {
+                        statusText = `🟢 Online (${serviceInfo.models} models)`;
+                        statusColor = '#00ff88';
+                    } else if (serviceInfo.status === 'error') {
+                        statusText = '🟡 Error';
+                        statusColor = '#ffaa00';
+                    } else {
+                        statusText = '🔴 Offline';
+                        statusColor = '#ff6600';
+                    }
+                    
+                    element.textContent = statusText;
+                    element.style.color = statusColor;
+                }
+            });
+        }
+    </script>
+</body>
+</html> 
