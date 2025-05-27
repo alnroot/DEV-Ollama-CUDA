@@ -240,7 +240,7 @@ El panel de estadísticas muestra:
 
 ## 🎯 Recomendaciones Adicionales
 
-### Para tu RTX 4070 Laptop:
+### este caso de uso es mi rtx 4070:
 
 1. **Usar modelos cuantizados menores**:
    ```bash
